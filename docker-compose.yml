@@ -9,7 +9,9 @@ services:
     container_name: finance
     restart: unless-stopped
     ports:
-      - '${APP_PORT:-3000}:3000'
+      # Слушаем только на localhost — наружу приложение отдаётся через reverse-proxy
+      # (nginx). Для прямого доступа по IP:порту замените на '${APP_PORT:-3000}:3000'.
+      - '127.0.0.1:${APP_PORT:-3000}:3000'
     environment:
       # Секрет для подписи JWT — обязательно поменяйте
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
