@@ -1,5 +1,10 @@
 const TOKEN_KEY = 'finance_token';
 
+// Базовый путь приложения ('' в корне, '/finance' под подпутём). Все запросы к API
+// и статике идут относительно него, чтобы работать за reverse-proxy на подпути.
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+export const basePath = BASE;
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -23,7 +28,7 @@ async function request<T>(
     const t = getToken();
     if (t) headers.authorization = `Bearer ${t}`;
   }
-  const res = await fetch(path, { ...opts, headers });
+  const res = await fetch(BASE + path, { ...opts, headers });
   if (res.status === 401) {
     setToken(null);
     location.reload();

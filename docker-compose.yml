@@ -1,6 +1,11 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        # Подпуть, под которым приложение отдаётся за reverse-proxy (напр. /finance/).
+        # По умолчанию '/'. Задаётся в .env как VITE_BASE=/finance/
+        VITE_BASE: ${VITE_BASE:-/}
     container_name: finance
     restart: unless-stopped
     ports:

@@ -1,5 +1,8 @@
 # ---------- 1. Сборка фронтенда (PWA) ----------
 FROM node:20-bookworm-slim AS frontend
+# Базовый путь: '/' по умолчанию, '/finance/' для деплоя под подпуть за reverse-proxy
+ARG VITE_BASE=/
+ENV VITE_BASE=$VITE_BASE
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci

@@ -223,7 +223,7 @@ export default function Add() {
             />
             {receiptPath && (
               <img
-                src={`/${receiptPath}`}
+                src={`${import.meta.env.BASE_URL}${receiptPath}`}
                 alt="чек"
                 style={{ maxHeight: 200, borderRadius: 8, objectFit: 'contain' }}
               />
