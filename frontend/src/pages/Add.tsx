@@ -22,7 +22,7 @@ import {
   useIonRouter,
   useIonViewWillEnter,
 } from '@ionic/react';
-import { cameraOutline, sparklesOutline } from 'ionicons/icons';
+import { cameraOutline, imagesOutline, sparklesOutline } from 'ionicons/icons';
 import { api, type Category, type AiParse } from '../api';
 import { money } from '../format';
 
@@ -42,6 +42,7 @@ export default function Add() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiResult, setAiResult] = useState<AiParse | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   const [toast, setToast] = useState('');
 
@@ -153,6 +154,28 @@ export default function Add() {
                 >
                   <IonIcon slot="start" icon={cameraOutline} />
                   Сфотографировать чек
+                </IonButton>
+
+                <input
+                  ref={galleryRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) runPhoto(f);
+                    e.target.value = '';
+                  }}
+                />
+                <IonButton
+                  expand="block"
+                  fill="outline"
+                  style={{ marginTop: 8 }}
+                  onClick={() => galleryRef.current?.click()}
+                  disabled={aiBusy}
+                >
+                  <IonIcon slot="start" icon={imagesOutline} />
+                  Выбрать из галереи
                 </IonButton>
 
                 <div style={{ height: 12 }} />
