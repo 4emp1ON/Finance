@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    container_name: finance
+    restart: unless-stopped
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    environment:
+      # Секрет для подписи JWT — обязательно поменяйте
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      # PIN по умолчанию для двух пользователей при первом запуске
+      DEFAULT_PIN: ${DEFAULT_PIN:-1234}
+      # Токен подписки Claude Max (получить: claude setup-token)
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-opus-4-8}
+    volumes:
+      - finance-data:/data
+
+volumes:
+  finance-data:
