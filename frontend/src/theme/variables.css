@@ -26,3 +26,15 @@
   color: var(--ion-color-medium);
   font-size: 0.85rem;
 }
+
+/* Сегмент «Через Claude / Вручную»: паддинги таба + отступ иконки от текста */
+.mode-segment ion-segment-button {
+  --padding-top: 10px;
+  --padding-bottom: 10px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  min-height: 44px;
+}
+.mode-segment ion-segment-button ion-icon {
+  margin-inline-end: 8px;
+}

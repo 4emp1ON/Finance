@@ -116,7 +116,11 @@ export default function Add() {
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        <IonSegment value={mode} onIonChange={(e) => setMode(e.detail.value as 'manual' | 'ai')}>
+        <IonSegment
+          className="mode-segment"
+          value={mode}
+          onIonChange={(e) => setMode(e.detail.value as 'manual' | 'ai')}
+        >
           <IonSegmentButton value="ai" layout="icon-start">
             <IonIcon icon={sparklesOutline} />
             <IonLabel>Через Claude</IonLabel>
