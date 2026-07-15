@@ -92,6 +92,8 @@ export default async function recurringRoutes(app: FastifyInstance) {
          VALUES (?, ?, ?, ?, 'recurring')`
       )
       .run(r.amount, r.category_id, r.name, uid);
+    // Помечаем период проведённым, чтобы авто-проведение не создало дубль
+    db.prepare("UPDATE recurring_payments SET last_applied_period = strftime('%Y-%m','now') WHERE id = ?").run(id);
     return db.prepare('SELECT * FROM transactions WHERE id = ?').get(info.lastInsertRowid);
   });
 }
