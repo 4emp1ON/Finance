@@ -23,16 +23,17 @@ export default async function recurringRoutes(app: FastifyInstance) {
       categoryId: z.number().int().nullable().optional(),
       dayOfMonth: z.number().int().min(1).max(31).default(1),
       active: z.boolean().default(true),
+      auto: z.boolean().default(true),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Неверные данные' });
     const d = parsed.data;
     const info = db
       .prepare(
-        `INSERT INTO recurring_payments (name, amount, category_id, day_of_month, active)
-         VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO recurring_payments (name, amount, category_id, day_of_month, active, auto)
+         VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .run(d.name, d.amount, d.categoryId ?? null, d.dayOfMonth, d.active ? 1 : 0);
+      .run(d.name, d.amount, d.categoryId ?? null, d.dayOfMonth, d.active ? 1 : 0, d.auto ? 1 : 0);
     return db.prepare('SELECT * FROM recurring_payments WHERE id = ?').get(info.lastInsertRowid);
   });
 
@@ -44,6 +45,7 @@ export default async function recurringRoutes(app: FastifyInstance) {
       categoryId: z.number().int().nullable().optional(),
       dayOfMonth: z.number().int().min(1).max(31).optional(),
       active: z.boolean().optional(),
+      auto: z.boolean().optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Неверные данные' });
@@ -56,7 +58,7 @@ export default async function recurringRoutes(app: FastifyInstance) {
       `UPDATE recurring_payments
        SET name = COALESCE(?, name), amount = COALESCE(?, amount),
            category_id = COALESCE(?, category_id), day_of_month = COALESCE(?, day_of_month),
-           active = COALESCE(?, active)
+           active = COALESCE(?, active), auto = COALESCE(?, auto)
        WHERE id = ?`
     ).run(
       d.name ?? null,
@@ -64,6 +66,7 @@ export default async function recurringRoutes(app: FastifyInstance) {
       d.categoryId ?? null,
       d.dayOfMonth ?? null,
       d.active === undefined ? null : d.active ? 1 : 0,
+      d.auto === undefined ? null : d.auto ? 1 : 0,
       id
     );
     return db.prepare('SELECT * FROM recurring_payments WHERE id = ?').get(id);

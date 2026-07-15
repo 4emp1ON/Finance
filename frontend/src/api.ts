@@ -66,6 +66,8 @@ export interface Transaction {
 export interface Summary {
   month: string;
   total: number;
+  prevMonth: string;
+  prevTotal: number;
   byCategory: {
     category_id: number | null;
     name: string | null;
@@ -73,6 +75,14 @@ export interface Summary {
     color: string | null;
     total: number;
   }[];
+}
+export interface TrendPoint {
+  month: string;
+  total: number;
+}
+export interface ChatMsg {
+  role: 'user' | 'assistant';
+  content: string;
 }
 export interface UtilityItem {
   type: string;
@@ -109,6 +119,8 @@ export interface Recurring {
   category_color: string | null;
   day_of_month: number;
   active: number;
+  auto: number;
+  last_applied_period: string | null;
 }
 export interface AiParse {
   amount: number | null;
@@ -157,6 +169,10 @@ export const api = {
     request(`/api/transactions/${id}`, { method: 'DELETE' }),
   summary: (month?: string) =>
     request<Summary>(`/api/summary${month ? `?month=${month}` : ''}`),
+  trends: (month?: string, months = 6) =>
+    request<TrendPoint[]>(
+      `/api/trends?months=${months}${month ? `&month=${month}` : ''}`
+    ),
 
   utilityMeta: () =>
     request<{ type: string; label: string; volumeRequired: boolean }[]>(
@@ -185,7 +201,10 @@ export const api = {
     amount: number;
     categoryId?: number | null;
     dayOfMonth: number;
+    auto?: boolean;
   }) => request<Recurring>('/api/recurring', { method: 'POST', body: JSON.stringify(r) }),
+  updateRecurring: (id: number, patch: Partial<{ auto: boolean; active: boolean }>) =>
+    request<Recurring>(`/api/recurring/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   applyRecurring: (id: number) =>
     request(`/api/recurring/${id}/apply`, { method: 'POST' }),
   deleteRecurring: (id: number) => request(`/api/recurring/${id}`, { method: 'DELETE' }),
@@ -197,4 +216,9 @@ export const api = {
     fd.append('file', file);
     return request<AiParse>('/api/ai/receipt', { method: 'POST', body: fd });
   },
+  aiChat: (question: string, history: ChatMsg[]) =>
+    request<{ answer: string }>('/api/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ question, history }),
+    }),
 };

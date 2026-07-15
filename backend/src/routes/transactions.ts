@@ -1,6 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from '../db.js';
+import { prevPeriod, addMonths, currentPeriod } from '../period.js';
+
+function monthTotal(period: string): number {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount), 0) AS total
+       FROM transactions WHERE strftime('%Y-%m', occurred_at) = ?`
+    )
+    .get(period) as { total: number };
+  return row.total;
+}
 
 export default async function transactionRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
@@ -66,16 +77,10 @@ export default async function transactionRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  // Сводка за месяц: сумма всего и по категориям
+  // Сводка за месяц: сумма всего, сумма за прошлый месяц (для сравнения) и по категориям
   app.get('/api/summary', async (req) => {
     const q = req.query as { month?: string };
-    const month = q.month || new Date().toISOString().slice(0, 7);
-    const total = db
-      .prepare(
-        `SELECT COALESCE(SUM(amount), 0) AS total
-         FROM transactions WHERE strftime('%Y-%m', occurred_at) = ?`
-      )
-      .get(month) as { total: number };
+    const month = q.month || currentPeriod();
     const byCategory = db
       .prepare(
         `SELECT c.id AS category_id, c.name, c.icon, c.color,
@@ -87,6 +92,25 @@ export default async function transactionRoutes(app: FastifyInstance) {
          ORDER BY total DESC`
       )
       .all(month);
-    return { month, total: total.total, byCategory };
+    return {
+      month,
+      total: monthTotal(month),
+      prevMonth: prevPeriod(month),
+      prevTotal: monthTotal(prevPeriod(month)),
+      byCategory,
+    };
+  });
+
+  // Тренд расходов за последние N месяцев (включая текущий/выбранный)
+  app.get('/api/trends', async (req) => {
+    const q = req.query as { month?: string; months?: string };
+    const end = q.month || currentPeriod();
+    const n = Math.min(Math.max(Number(q.months) || 6, 2), 24);
+    const items: { month: string; total: number }[] = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const p = addMonths(end, -i);
+      items.push({ month: p, total: monthTotal(p) });
+    }
+    return items;
   });
 }

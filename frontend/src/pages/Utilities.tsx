@@ -25,8 +25,9 @@ import {
   checkmarkCircle,
   alertCircle,
 } from 'ionicons/icons';
-import { api, type UtilityStatus, type UtilityItem } from '../api';
-import { money, currentPeriod, periodLabel } from '../format';
+import { api, type UtilityStatus, type UtilityItem, type UtilityReading } from '../api';
+import { money, currentPeriod, periodLabel, monthShort } from '../format';
+import BarChart from '../components/BarChart';
 
 const ICONS: Record<string, string> = {
   gas: flameOutline,
@@ -146,11 +147,13 @@ function UtilityCard({
 
 export default function Utilities() {
   const [status, setStatus] = useState<UtilityStatus | null>(null);
+  const [history, setHistory] = useState<UtilityReading[]>([]);
   const [toast, setToast] = useState('');
   const period = currentPeriod();
 
   const load = useCallback(() => {
     api.utilityStatus(period).then(setStatus);
+    api.utilityHistory(undefined, 60).then(setHistory);
   }, [period]);
 
   useIonViewWillEnter(() => {
@@ -188,6 +191,52 @@ export default function Utilities() {
         {status?.items.map((item) => (
           <UtilityCard key={item.type} item={item} period={period} onSaved={onSaved} />
         ))}
+
+        {status && history.length > 0 && (
+          <>
+            <div className="ion-padding" style={{ paddingBottom: 0 }}>
+              <h2 style={{ fontWeight: 600, margin: '4px 0 0' }}>История</h2>
+            </div>
+            {status.items.map((item) => {
+              const rows = history
+                .filter((h) => h.type === item.type)
+                .sort((a, b) => (a.period < b.period ? -1 : 1))
+                .slice(-8);
+              if (rows.length < 2) return null;
+              const last = rows[rows.length - 1];
+              return (
+                <IonCard key={`h-${item.type}`}>
+                  <IonCardContent>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontWeight: 600 }}>
+                      <IonIcon icon={ICONS[item.type]} color="primary" /> {item.label}
+                    </div>
+                    <div className="hint" style={{ marginBottom: 6 }}>Сумма, ₽</div>
+                    <BarChart
+                      bars={rows.map((r) => ({ key: r.period, label: monthShort(r.period), value: r.amount || 0 }))}
+                    />
+                    {item.volumeRequired && (
+                      <>
+                        <div className="hint" style={{ margin: '14px 0 6px' }}>Объём</div>
+                        <BarChart
+                          bars={rows.map((r) => ({ key: r.period, label: monthShort(r.period), value: r.volume || 0 }))}
+                          color="var(--ion-color-medium)"
+                        />
+                      </>
+                    )}
+                    {(last.diff_amount != null || last.diff_volume != null) && (
+                      <IonNote color="medium" style={{ display: 'block', marginTop: 10 }}>
+                        Последняя разница:
+                        {last.diff_volume != null && ` объём ${last.diff_volume > 0 ? '+' : ''}${last.diff_volume}`}
+                        {last.diff_amount != null &&
+                          ` · сумма ${last.diff_amount > 0 ? '+' : ''}${money(last.diff_amount)}`}
+                      </IonNote>
+                    )}
+                  </IonCardContent>
+                </IonCard>
+              );
+            })}
+          </>
+        )}
         <div style={{ height: 24 }} />
 
         <IonToast

@@ -67,6 +67,8 @@ function migrate() {
       category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
       day_of_month INTEGER NOT NULL DEFAULT 1,
       active INTEGER NOT NULL DEFAULT 1,
+      auto INTEGER NOT NULL DEFAULT 1,
+      last_applied_period TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -89,6 +91,17 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_tx_occurred ON transactions(occurred_at);
     CREATE INDEX IF NOT EXISTS idx_util_period ON utility_readings(period);
   `);
+
+  // Безопасное добавление колонок в существующие БД (на проде уже есть данные)
+  ensureColumn('recurring_payments', 'auto', 'auto INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('recurring_payments', 'last_applied_period', 'last_applied_period TEXT');
+}
+
+function ensureColumn(table: string, column: string, ddl: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  }
 }
 
 function seed() {

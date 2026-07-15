@@ -13,6 +13,7 @@ import recurringRoutes from './routes/recurring.js';
 import utilityRoutes from './routes/utilities.js';
 import aiRoutes from './routes/ai.js';
 import { scheduleUploadCleanup } from './cleanup.js';
+import { scheduleRecurringAuto } from './recurringAuto.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -70,6 +71,7 @@ if (existsSync(FRONTEND_DIR)) {
 try {
   await app.listen({ port: PORT, host: HOST });
   scheduleUploadCleanup(app.log);
+  scheduleRecurringAuto(app.log);
 } catch (err) {
   app.log.error(err);
   process.exit(1);

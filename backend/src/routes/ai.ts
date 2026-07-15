@@ -5,6 +5,7 @@ import { mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import sharp from 'sharp';
 import { parseExpense } from '../ai/parse.js';
+import { chatAboutFinances, type ChatMessage } from '../ai/chat.js';
 
 const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR || './data/uploads');
 // Максимальная сторона сжатого изображения (px) и качество JPEG
@@ -25,6 +26,34 @@ export default async function aiRoutes(app: FastifyInstance) {
     } catch (e) {
       app.log.error(e);
       return reply.code(502).send({ error: 'Не удалось обработать через Claude', detail: String(e) });
+    }
+  });
+
+  // Чат про траты: вопрос на естественном языке по данным бюджета
+  app.post('/api/ai/chat', async (req, reply) => {
+    const schema = z.object({
+      question: z.string().min(1).max(2000),
+      history: z
+        .array(
+          z.object({
+            role: z.enum(['user', 'assistant']),
+            content: z.string(),
+          })
+        )
+        .max(20)
+        .optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Нужен вопрос' });
+    try {
+      const answer = await chatAboutFinances(
+        parsed.data.question,
+        (parsed.data.history as ChatMessage[]) ?? []
+      );
+      return { answer };
+    } catch (e) {
+      app.log.error(e);
+      return reply.code(502).send({ error: 'Не удалось получить ответ от Claude', detail: String(e) });
     }
   });
 

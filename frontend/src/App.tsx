@@ -1,12 +1,19 @@
 import { IonApp, IonRouterOutlet, IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel, IonSpinner } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { Redirect, Route } from 'react-router-dom';
-import { homeOutline, addCircleOutline, flashOutline, ellipsisHorizontalOutline } from 'ionicons/icons';
+import {
+  homeOutline,
+  addCircleOutline,
+  flashOutline,
+  chatbubblesOutline,
+  ellipsisHorizontalOutline,
+} from 'ionicons/icons';
 import { useAuth } from './auth';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Add from './pages/Add';
 import Utilities from './pages/Utilities';
+import Chat from './pages/Chat';
 import More from './pages/More';
 
 export default function App() {
@@ -38,6 +45,7 @@ export default function App() {
             <Route exact path="/home" component={Home} />
             <Route exact path="/add" component={Add} />
             <Route exact path="/utilities" component={Utilities} />
+            <Route exact path="/chat" component={Chat} />
             <Route exact path="/more" component={More} />
             <Route exact path="/">
               <Redirect to="/home" />
@@ -55,6 +63,10 @@ export default function App() {
             <IonTabButton tab="utilities" href="/utilities">
               <IonIcon icon={flashOutline} />
               <IonLabel>Коммуналка</IonLabel>
+            </IonTabButton>
+            <IonTabButton tab="chat" href="/chat">
+              <IonIcon icon={chatbubblesOutline} />
+              <IonLabel>Спросить</IonLabel>
             </IonTabButton>
             <IonTabButton tab="more" href="/more">
               <IonIcon icon={ellipsisHorizontalOutline} />

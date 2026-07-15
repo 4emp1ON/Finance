@@ -21,13 +21,17 @@ import {
   IonSelectOption,
   IonToast,
   IonButtons,
+  IonToggle,
+  IonSegment,
+  IonSegmentButton,
   useIonViewWillEnter,
 } from '@ionic/react';
-import { addOutline, logOutOutline, playOutline } from 'ionicons/icons';
+import { addOutline, logOutOutline } from 'ionicons/icons';
 import * as ionIcons from 'ionicons/icons';
 import { api, type Category, type Recurring } from '../api';
 import { money } from '../format';
 import { useAuth } from '../auth';
+import { getThemePref, setThemePref, type ThemePref } from '../theme/theme';
 
 function icon(name: string | null): string {
   if (!name) return ionIcons.pricetagOutline;
@@ -53,6 +57,21 @@ export default function More() {
   const [pinModal, setPinModal] = useState(false);
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
+
+  const [theme, setThemeState] = useState<ThemePref>(getThemePref());
+  const changeTheme = (t: ThemePref) => {
+    setThemeState(t);
+    setThemePref(t);
+  };
+
+  const toggleAuto = async (r: Recurring, auto: boolean) => {
+    setRecurring((list) => list.map((x) => (x.id === r.id ? { ...x, auto: auto ? 1 : 0 } : x)));
+    try {
+      await api.updateRecurring(r.id, { auto });
+    } catch {
+      load();
+    }
+  };
 
   const load = useCallback(() => {
     api.categories().then(setCats);
@@ -141,21 +160,26 @@ export default function More() {
                 <IonLabel>
                   <h3>{r.name}</h3>
                   <p className="hint">
-                    {money(r.amount)} · {r.day_of_month} числа
+                    {money(r.amount)} · {r.day_of_month} числа · {r.auto ? 'авто' : 'вручную'}
                   </p>
                 </IonLabel>
-                <IonButton
+                <IonToggle
                   slot="end"
-                  fill="clear"
+                  checked={!!r.auto}
+                  onIonChange={(e) => toggleAuto(r, e.detail.checked)}
+                  aria-label="Авто-проведение"
+                />
+              </IonItem>
+              <IonItemOptions side="end">
+                <IonItemOption
+                  color="primary"
                   onClick={async () => {
                     await api.applyRecurring(r.id);
                     setToast('Платёж проведён');
                   }}
                 >
-                  <IonIcon slot="icon-only" icon={playOutline} />
-                </IonButton>
-              </IonItem>
-              <IonItemOptions side="end">
+                  Провести
+                </IonItemOption>
                 <IonItemOption
                   color="danger"
                   onClick={async () => {
@@ -206,6 +230,26 @@ export default function More() {
               )}
             </IonItemSliding>
           ))}
+        </IonList>
+
+        {/* Оформление */}
+        <IonList inset>
+          <IonListHeader>
+            <IonLabel>Тема</IonLabel>
+          </IonListHeader>
+          <IonItem lines="none">
+            <IonSegment value={theme} onIonChange={(e) => changeTheme(e.detail.value as ThemePref)}>
+              <IonSegmentButton value="dark">
+                <IonLabel>Тёмная</IonLabel>
+              </IonSegmentButton>
+              <IonSegmentButton value="light">
+                <IonLabel>Светлая</IonLabel>
+              </IonSegmentButton>
+              <IonSegmentButton value="system">
+                <IonLabel>Система</IonLabel>
+              </IonSegmentButton>
+            </IonSegment>
+          </IonItem>
         </IonList>
 
         {/* Аккаунт */}

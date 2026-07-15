@@ -17,6 +17,17 @@ export function periodLabel(period: string): string {
   return d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
 }
 
+export function monthShort(period: string): string {
+  const [y, m] = period.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('ru-RU', { month: 'short' });
+}
+
+export function addMonths(period: string, delta: number): string {
+  const [y, m] = period.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export function dateLabel(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
