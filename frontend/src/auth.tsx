@@ -8,6 +8,20 @@ interface AuthCtx {
   logout: () => void;
 }
 
+// Достаёт {id, name} из полезной нагрузки JWT без обращения к серверу.
+function decodeUserFromToken(token: string | null): User | null {
+  if (!token) return null;
+  try {
+    const part = token.split('.')[1];
+    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+    const p = JSON.parse(json);
+    if (typeof p.id === 'number' && typeof p.name === 'string') return { id: p.id, name: p.name };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const Ctx = createContext<AuthCtx>({
   user: null,
   loading: true,
@@ -24,9 +38,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    // Уже входили — показываем приложение сразу из локального кэша, без ожидания сети.
-    const stored = getStoredUser();
-    if (stored) setUser(stored);
+    // Уже входили — показываем приложение сразу, без ожидания сети.
+    // Пользователь берётся из localStorage, а если его там ещё нет (старая
+    // установка) — декодируется прямо из JWT-токена. Так вход переживает офлайн.
+    const stored = getStoredUser() ?? decodeUserFromToken(getToken());
+    if (stored) {
+      setUser(stored);
+      setStoredUser(stored);
+    }
     setLoading(false);
     // Фоново обновляем данные пользователя. Любая ошибка (нет сети / бэк лежит) —
     // игнорируется: НЕ разлогиниваем никогда (только по кнопке «Выйти»).
