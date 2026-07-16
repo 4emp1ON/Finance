@@ -41,6 +41,31 @@ export default defineConfig({
         navigateFallbackDenylist: [/\/api\//, /\/uploads\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            // GET-запросы к API: онлайн — сеть + обновление кэша; офлайн/бэк лежит —
+            // отдаём последний закэшированный ответ. Мутации (POST) сюда не попадают.
+            urlPattern: ({ url, request }) =>
+              url.pathname.includes('/api/') && request.method === 'GET',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'finance-api',
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 24 * 3600 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Загруженные чеки — из кэша, если уже видели
+            urlPattern: ({ url }) => url.pathname.includes('/uploads/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'finance-uploads',
+              expiration: { maxEntries: 100, maxAgeSeconds: 30 * 24 * 3600 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
   ],
