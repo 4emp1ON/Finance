@@ -38,3 +38,19 @@
 .mode-segment ion-segment-button ion-icon {
   margin-inline-end: 8px;
 }
+
+/* Переключатель базы сравнения на Главной (весь месяц / до числа) */
+.cmp-toggle {
+  border: 1px solid var(--ion-color-step-350, #b0b0b0);
+  color: var(--ion-color-medium);
+  background: transparent;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  padding: 2px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+.cmp-toggle:active {
+  background: var(--ion-color-step-100, #eee);
+}

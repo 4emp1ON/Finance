@@ -82,6 +82,10 @@ export interface Summary {
   total: number;
   prevMonth: string;
   prevTotal: number;
+  day: number;
+  isLastDay: boolean;
+  currentToDate: number;
+  prevToDate: number;
   byCategory: {
     category_id: number | null;
     name: string | null;

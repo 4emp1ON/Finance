@@ -13,6 +13,19 @@ function monthTotal(period: string): number {
   return row.total;
 }
 
+// Сумма за период до N-го числа включительно (для сравнения «такое же число»)
+function monthTotalToDate(period: string, day: number): number {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount), 0) AS total
+       FROM transactions
+       WHERE strftime('%Y-%m', occurred_at) = ?
+         AND CAST(strftime('%d', occurred_at) AS INTEGER) <= ?`
+    )
+    .get(period, day) as { total: number };
+  return row.total;
+}
+
 export default async function transactionRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
 
@@ -92,11 +105,19 @@ export default async function transactionRoutes(app: FastifyInstance) {
          ORDER BY total DESC`
       )
       .all(month);
+    const now = new Date();
+    const day = now.getDate();
+    const daysInThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     return {
       month,
       total: monthTotal(month),
       prevMonth: prevPeriod(month),
       prevTotal: monthTotal(prevPeriod(month)),
+      // Сравнение «до сегодняшнего числа»: текущий период и прошлый — оба до day-го
+      day,
+      isLastDay: day === daysInThisMonth,
+      currentToDate: monthTotalToDate(month, day),
+      prevToDate: monthTotalToDate(prevPeriod(month), day),
       byCategory,
     };
   });

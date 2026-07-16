@@ -74,7 +74,16 @@ export default function Home() {
   const [pending, setPending] = useState<PendingTx[]>([]);
   const [online, setOnline] = useState(navigator.onLine);
   const [period, setPeriod] = useState(currentPeriod());
+  const [cmpMode, setCmpMode] = useState<'month' | 'date'>(
+    () => (localStorage.getItem('finance_cmp') as 'month' | 'date') || 'month'
+  );
   const router = useIonRouter();
+
+  const toggleCmp = () => {
+    const m = cmpMode === 'month' ? 'date' : 'month';
+    setCmpMode(m);
+    localStorage.setItem('finance_cmp', m);
+  };
 
   const isCurrent = period === currentPeriod();
 
@@ -201,9 +210,15 @@ export default function Home() {
     })),
   ];
 
-  const delta = displayTotal - (summary?.prevTotal ?? 0);
-  const pct =
-    summary && summary.prevTotal > 0 ? Math.round((delta / summary.prevTotal) * 100) : null;
+  // Сравнение с прошлым месяцем: «весь месяц» или «до сегодняшнего числа».
+  // В последний день месяца режим «до числа» недоступен (некорректно для коротких месяцев).
+  const canDate = !!summary && !summary.isLastDay;
+  const effMode = canDate ? cmpMode : 'month';
+  const cmpCurr =
+    effMode === 'date' && summary ? (summary.currentToDate ?? 0) + pendingSum : displayTotal;
+  const cmpPrev = effMode === 'date' && summary ? summary.prevToDate ?? 0 : summary?.prevTotal ?? 0;
+  const delta = cmpCurr - cmpPrev;
+  const pct = cmpPrev > 0 ? Math.round((delta / cmpPrev) * 100) : null;
 
   return (
     <IonPage>
@@ -243,27 +258,41 @@ export default function Home() {
           <IonCardContent>
             <div className="hint">Расходы за {isCurrent ? 'месяц' : periodLabel(period)}</div>
             <div className="amount-big">{money(displayTotal)}</div>
-            {summary && (displayTotal > 0 || summary.prevTotal > 0) && (
+            {summary && (cmpCurr > 0 || cmpPrev > 0) && (
               <div
-                style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: '0.85rem' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginTop: 4,
+                  fontSize: '0.85rem',
+                  flexWrap: 'wrap',
+                }}
               >
-                {delta !== 0 && (
-                  <IonIcon icon={delta > 0 ? arrowUp : arrowDown} color={delta > 0 ? 'danger' : 'success'} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {delta !== 0 && (
+                    <IonIcon icon={delta > 0 ? arrowUp : arrowDown} color={delta > 0 ? 'danger' : 'success'} />
+                  )}
+                  <span
+                    style={{
+                      color:
+                        delta > 0
+                          ? 'var(--ion-color-danger)'
+                          : delta < 0
+                            ? 'var(--ion-color-success)'
+                            : 'var(--ion-color-medium)',
+                    }}
+                  >
+                    {delta === 0
+                      ? 'Как в прошлом месяце'
+                      : `${delta > 0 ? '+' : '−'}${money(Math.abs(delta))}${pct != null ? ` (${delta > 0 ? '+' : '−'}${Math.abs(pct)}%)` : ''} vs ${monthShort(summary.prevMonth)}`}
+                  </span>
+                </div>
+                {canDate && (
+                  <button className="cmp-toggle" onClick={toggleCmp}>
+                    {effMode === 'month' ? 'весь месяц' : `до ${summary.day}-го`}
+                  </button>
                 )}
-                <span
-                  style={{
-                    color:
-                      delta > 0
-                        ? 'var(--ion-color-danger)'
-                        : delta < 0
-                          ? 'var(--ion-color-success)'
-                          : 'var(--ion-color-medium)',
-                  }}
-                >
-                  {delta === 0
-                    ? 'Как в прошлом месяце'
-                    : `${delta > 0 ? '+' : '−'}${money(Math.abs(delta))}${pct != null ? ` (${delta > 0 ? '+' : '−'}${Math.abs(pct)}%)` : ''} vs ${monthShort(summary.prevMonth)}`}
-                </span>
               </div>
             )}
           </IonCardContent>
