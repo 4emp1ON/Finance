@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, getToken, setToken, type User } from './api';
+import { api, getToken, setToken, getStoredUser, setStoredUser, type User } from './api';
 
 interface AuthCtx {
   user: User | null;
@@ -24,21 +24,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
+    // Уже входили — показываем приложение сразу из локального кэша, без ожидания сети.
+    const stored = getStoredUser();
+    if (stored) setUser(stored);
+    setLoading(false);
+    // Фоново обновляем данные пользователя. Любая ошибка (нет сети / бэк лежит) —
+    // игнорируется: НЕ разлогиниваем никогда (только по кнопке «Выйти»).
     api
       .me()
-      .then(setUser)
-      .catch(() => setToken(null))
-      .finally(() => setLoading(false));
+      .then((u) => {
+        setUser(u);
+        setStoredUser(u);
+      })
+      .catch(() => {
+        /* оставляем текущего пользователя как есть */
+      });
   }, []);
 
   const login = async (userId: number, pin: string) => {
     const { token, user } = await api.login(userId, pin);
     setToken(token);
+    setStoredUser(user);
     setUser(user);
   };
 
   const logout = () => {
     setToken(null);
+    setStoredUser(null);
     setUser(null);
   };
 

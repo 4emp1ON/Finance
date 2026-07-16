@@ -25,6 +25,7 @@ import {
 import { cameraOutline, imagesOutline, sparklesOutline } from 'ionicons/icons';
 import { api, type Category, type AiParse } from '../api';
 import { money } from '../format';
+import { submitExpense } from '../offline';
 
 export default function Add() {
   const router = useIonRouter();
@@ -91,20 +92,41 @@ export default function Add() {
       setToast('Введите сумму');
       return;
     }
-    await api.addTransaction({
-      amount: amt,
-      categoryId,
-      note: note || undefined,
-      source: aiResult ? 'ai' : 'manual',
-      receiptPath,
-    });
+    const cat = cats.find((c) => c.id === categoryId);
+    let msg = 'Сохранено';
+    try {
+      if (aiResult) {
+        // AI-результат: чек уже на сервере — сохранение требует связи с бэком
+        await api.addTransaction({
+          amount: amt,
+          categoryId,
+          note: note || undefined,
+          source: 'ai',
+          receiptPath,
+        });
+      } else {
+        // Ручная трата: работает и офлайн (кладётся в очередь синхронизации)
+        const { queued } = await submitExpense({
+          amount: amt,
+          categoryId,
+          note: note || undefined,
+          categoryName: cat?.name ?? null,
+          categoryColor: cat?.color ?? null,
+          categoryIcon: cat?.icon ?? null,
+        });
+        if (queued) msg = 'Сохранено офлайн — синхронизируется позже';
+      }
+    } catch {
+      setToast('Нет связи с сервером — попробуйте позже');
+      return;
+    }
     setAmount('');
     setNote('');
     setCategoryId(null);
     setReceiptPath(null);
     setAiResult(null);
     setAiText('');
-    setToast('Сохранено');
+    setToast(msg);
     router.push('/home');
   };
 

@@ -5,12 +5,29 @@ const TOKEN_KEY = 'finance_token';
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 export const basePath = BASE;
 
+const USER_KEY = 'finance_user';
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 export function setToken(t: string | null) {
   if (t) localStorage.setItem(TOKEN_KEY, t);
   else localStorage.removeItem(TOKEN_KEY);
+}
+
+// Пользователь хранится локально, чтобы приложение открывалось в залогиненном
+// состоянии даже без сети (никогда не разлогинивать до явного выхода).
+export function getStoredUser(): { id: number; name: string } | null {
+  try {
+    const v = localStorage.getItem(USER_KEY);
+    return v ? JSON.parse(v) : null;
+  } catch {
+    return null;
+  }
+}
+export function setStoredUser(u: { id: number; name: string } | null) {
+  if (u) localStorage.setItem(USER_KEY, JSON.stringify(u));
+  else localStorage.removeItem(USER_KEY);
 }
 
 async function request<T>(
@@ -28,12 +45,9 @@ async function request<T>(
     const t = getToken();
     if (t) headers.authorization = `Bearer ${t}`;
   }
+  // Сетевая ошибка (бэк недоступен) пробрасывается как TypeError — вызывающий код
+  // различает её и уходит в офлайн-режим. НЕ разлогиниваем ни при каких ошибках.
   const res = await fetch(BASE + path, { ...opts, headers });
-  if (res.status === 401) {
-    setToken(null);
-    location.reload();
-    throw new Error('Требуется вход');
-  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error || 'Ошибка запроса');
   return data as T;
