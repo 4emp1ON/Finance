@@ -49,8 +49,25 @@ async function request<T>(
   // различает её и уходит в офлайн-режим. НЕ разлогиниваем ни при каких ошибках.
   const res = await fetch(BASE + path, { ...opts, headers });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error || 'Ошибка запроса');
+  if (!res.ok)
+    throw new ApiError((data as { error?: string }).error || 'Ошибка запроса', res.status);
   return data as T;
+}
+
+// Ошибка-ответ сервера; статус нужен, чтобы отличать «бэк лежит за прокси»
+// (502/503/504) от ошибок валидации и прочих.
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
+
+// Ограничение времени запроса там, где зависание хуже ошибки (сохранение траты):
+// по таймауту бросается AbortError/TimeoutError, и вызывающий код уходит в офлайн-очередь.
+function timeoutSignal(ms: number): AbortSignal | undefined {
+  return typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
+    ? AbortSignal.timeout(ms)
+    : undefined;
 }
 
 export interface User {
@@ -175,14 +192,22 @@ export const api = {
         ...(limit ? { limit: String(limit) } : {}),
       })}`
     ),
-  addTransaction: (t: {
-    amount: number;
-    categoryId?: number | null;
-    note?: string;
-    occurredAt?: string;
-    source?: string;
-    receiptPath?: string | null;
-  }) => request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(t) }),
+  addTransaction: (
+    t: {
+      amount: number;
+      categoryId?: number | null;
+      note?: string;
+      occurredAt?: string;
+      source?: string;
+      receiptPath?: string | null;
+    },
+    opts?: { timeoutMs?: number }
+  ) =>
+    request<Transaction>('/api/transactions', {
+      method: 'POST',
+      body: JSON.stringify(t),
+      signal: opts?.timeoutMs ? timeoutSignal(opts.timeoutMs) : undefined,
+    }),
   deleteTransaction: (id: number) =>
     request(`/api/transactions/${id}`, { method: 'DELETE' }),
   summary: (month?: string) =>

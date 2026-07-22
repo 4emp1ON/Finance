@@ -25,7 +25,8 @@ import {
 import { cameraOutline, imagesOutline, sparklesOutline } from 'ionicons/icons';
 import { api, type Category, type AiParse } from '../api';
 import { money } from '../format';
-import { submitExpense } from '../offline';
+import { getCache, setCache } from '../cache';
+import { submitExpense, cacheSavedTransaction } from '../offline';
 
 export default function Add() {
   const router = useIonRouter();
@@ -46,9 +47,14 @@ export default function Add() {
   const galleryRef = useRef<HTMLInputElement>(null);
 
   const [toast, setToast] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useIonViewWillEnter(() => {
-    api.categories().then(setCats);
+    // офлайн/бэк лежит — берём последний известный список категорий
+    api.categories().then((c) => {
+      setCats(c);
+      setCache('categories', c);
+    }).catch(() => setCats(getCache<Category[]>('categories') ?? []));
   });
 
   const applyAi = (r: AiParse) => {
@@ -87,6 +93,7 @@ export default function Add() {
   };
 
   const save = async () => {
+    if (saving) return;
     const amt = parseFloat(amount.replace(',', '.'));
     if (!amt || amt <= 0) {
       setToast('Введите сумму');
@@ -94,15 +101,25 @@ export default function Add() {
     }
     const cat = cats.find((c) => c.id === categoryId);
     let msg = 'Сохранено';
+    setSaving(true);
     try {
       if (aiResult) {
         // AI-результат: чек уже на сервере — сохранение требует связи с бэком
-        await api.addTransaction({
-          amount: amt,
-          categoryId,
-          note: note || undefined,
-          source: 'ai',
-          receiptPath,
+        const created = await api.addTransaction(
+          {
+            amount: amt,
+            categoryId,
+            note: note || undefined,
+            source: 'ai',
+            receiptPath,
+          },
+          { timeoutMs: 15000 }
+        );
+        await cacheSavedTransaction({
+          ...created,
+          category_name: cat?.name ?? null,
+          category_icon: cat?.icon ?? null,
+          category_color: cat?.color ?? null,
         });
       } else {
         // Ручная трата: работает и офлайн (кладётся в очередь синхронизации)
@@ -117,8 +134,10 @@ export default function Add() {
         if (queued) msg = 'Сохранено офлайн — синхронизируется позже';
       }
     } catch {
-      setToast('Нет связи с сервером — попробуйте позже');
+      setToast('Не удалось сохранить: нет связи с сервером. Данные остались в форме — попробуйте ещё раз.');
       return;
+    } finally {
+      setSaving(false);
     }
     setAmount('');
     setNote('');
@@ -277,8 +296,8 @@ export default function Add() {
                 style={{ maxHeight: 200, borderRadius: 8, objectFit: 'contain' }}
               />
             )}
-            <IonButton expand="block" onClick={save}>
-              Сохранить
+            <IonButton expand="block" onClick={save} disabled={saving}>
+              {saving ? <IonSpinner name="crescent" /> : 'Сохранить'}
             </IonButton>
           </div>
         )}

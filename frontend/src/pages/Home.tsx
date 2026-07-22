@@ -67,11 +67,21 @@ interface Row {
 }
 
 export default function Home() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [txs, setTxs] = useState<Transaction[]>([]);
-  const [util, setUtil] = useState<UtilityStatus | null>(null);
-  const [trends, setTrends] = useState<TrendPoint[]>([]);
-  const [pending, setPending] = useState<PendingTx[]>([]);
+  // Стартуем с последних закэшированных данных, а не с пустого бюджета:
+  // сеть (или её таймаут) может занять секунды, кэш показываем мгновенно.
+  const [summary, setSummary] = useState<Summary | null>(() =>
+    getCache<Summary>(`summary_${currentPeriod()}`)
+  );
+  const [txs, setTxs] = useState<Transaction[]>(
+    () => getCache<Transaction[]>(`txs_${currentPeriod()}`) ?? []
+  );
+  const [util, setUtil] = useState<UtilityStatus | null>(() =>
+    getCache<UtilityStatus>(`util_${currentPeriod()}`)
+  );
+  const [trends, setTrends] = useState<TrendPoint[]>(
+    () => getCache<TrendPoint[]>(`trends_${currentPeriod()}`) ?? []
+  );
+  const [pending, setPending] = useState<PendingTx[]>(() => getPending());
   const [online, setOnline] = useState(navigator.onLine);
   const [period, setPeriod] = useState(currentPeriod());
   const [cmpMode, setCmpMode] = useState<'month' | 'date'>(
@@ -120,8 +130,21 @@ export default function Home() {
     });
   });
 
+  // Показ данных из кэша без ожидания сети (кэш свежее текущего состояния:
+  // синхронизированные траты вписываются в него в offline.ts)
+  const hydrateFromCache = useCallback((p: string) => {
+    setSummary((prev) => getCache<Summary>(`summary_${p}`) ?? prev);
+    setTxs((prev) => getCache<Transaction[]>(`txs_${p}`) ?? prev);
+    setUtil((prev) => getCache<UtilityStatus>(`util_${p}`) ?? prev);
+    setTrends((prev) => getCache<TrendPoint[]>(`trends_${p}`) ?? prev);
+  }, []);
+
   useEffect(() => {
-    const off = onPendingChange(() => setPending(getPending()));
+    const off = onPendingChange(() => {
+      setPending(getPending());
+      // трата из очереди ушла на сервер и уже вписана в кэш — показываем сразу
+      hydrateFromCache(period);
+    });
     const onOnline = () => {
       setOnline(true);
       syncPending().finally(() => {
@@ -137,10 +160,15 @@ export default function Home() {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
-  }, [load, period]);
+  }, [load, period, hydrateFromCache]);
 
   const goTo = (p: string) => {
     setPeriod(p);
+    // сначала кэш выбранного месяца (мгновенно и работает офлайн), затем сеть
+    setSummary(getCache<Summary>(`summary_${p}`));
+    setTxs(getCache<Transaction[]>(`txs_${p}`) ?? []);
+    setUtil(getCache<UtilityStatus>(`util_${p}`));
+    setTrends(getCache<TrendPoint[]>(`trends_${p}`) ?? []);
     load(p);
   };
 
